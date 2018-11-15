@@ -38,6 +38,7 @@ exports.resize = async (req, res, next) => {
 };
 
 exports.createStore = async(req, res) => {
+    req.body.author = req.user._id;
     const store = await (new Store(req.body)).save();
     req.flash('success', `Successfully Created ${store.name}. Care to leave a review?`);
     res.redirect(`/store/${store.slug}`);
@@ -46,8 +47,15 @@ exports.getStores = async(req, res) => {
     const stores = await Store.find();
     res.render('stores', {title : 'Stores', stores});
 };
+
+const confirmOwner = (store, user) => {
+    if(!store.author.equals(user._id)){
+        throw Error('You must be the owner of the store.');
+    }
+};
 exports.editStore = async(req, res) => {
     const store = await Store.findOne({ _id: req.params.id});
+    confirmOwner(store, req.user);
     res.render('editStore', {title:`Edit ${store.name}`, store});
 };
 exports.updateStore = async(req, res) => {
@@ -61,6 +69,8 @@ exports.updateStore = async(req, res) => {
 };
 
 exports.getStoreBySlug = async(req, res, next) => {
+    // To populate reference use .populate
+    //const store = await Store.findOne({ slug: req.params.slug}).populate('author');
     const store = await Store.findOne({ slug: req.params.slug});
     if(!store) return next();
     res.render('store', {store, title: store.name});
@@ -73,4 +83,43 @@ exports.getStoreByTag = async(req, res, next) => {
     const storePromise = Store.find( {tags: tagQuery} );
     const [tags, stores] = await Promise.all([tagsPromise, storePromise]);
     res.render('tags', {tags, title: 'Tags', tag, stores});
+};
+
+exports.mapPage = (req, res) => {
+    res.render('map', { title: 'Map' });
+};
+
+exports.searchStores = async (req, res) => {
+    const stores = await Store
+    .find({
+        $text: {
+            $search: req.query.q,
+        }
+    }, {
+        score: { $meta: 'textScore' }
+    })
+    .sort({score: { $meta: 'textScore' }})
+    .limit(5);
+    res.json(stores);
+};
+exports.mapStores = async (req, res) => {
+    const {lng, lat} = req.query;
+    const coordinates = [lng,lat].map(parseFloat);
+    const q = {
+        location: {
+          $near: {
+            $geometry: {
+              type: 'Point',
+              coordinates
+            },
+            $maxDistance: 10000 // 10km
+          }
+        }
+      };
+    const stores = await Store
+        .find(q)
+        .select('slug description name location photo')
+        .limit(10);
+    //const stores = await Store.find(q).select('-name -phono'); to exclude
+    res.json(stores);
 };

@@ -28,6 +28,7 @@ router.get('/tags/:tag', catchErrors(storeController.getStoreByTag));
 router.get('/login', userController.loginForm);
 router.post('/login', authController.login);
 
+router.get('/register', userController.registerForm);
 router.post('/register',
     userController.validateRegister,
     userController.register,
@@ -37,15 +38,19 @@ router.post('/register',
 router.get('/logout', authController.logout);
 
 router.get('/account', 
-    authController.isLoggedIn,
-    userController.account);
+authController.isLoggedIn,
+userController.account);
 router.post('/account/forgot', catchErrors(authController.forgot));
 router.get('/account/reset/:token', catchErrors(authController.reset));
 router.post('/account/reset/:token', 
-    authController.confirmedPasswords, 
-    catchErrors(authController.update));
+authController.confirmedPasswords, 
+catchErrors(authController.update));
 
 router.post('/account', catchErrors(userController.updateAccount));
 
+router.get('/map', storeController.mapPage);
+// API
+router.get('/api/search', catchErrors(storeController.searchStores));
+router.get('/api/stores/near', catchErrors(storeController.mapStores));
 
 module.exports = router;
